@@ -1,0 +1,63 @@
+Hadoop cluster setup:
+
+1. install the hadoop software and copy the same directory structure across all the nodes to maintain consistency.
+2. make the necessary entries in the /etc/hosts file.
+3. Configure the ssh to connect from master to all the other nodes without passwords. HDFS connects from master to nodes using hdfs.
+4. make sure the datanodes and namenodes directories on each server are cleaned up.
+5. make sure the namenode is formatted.
+6. if there are cluster id conflict errors, please format the name nodes with the clusterid flag for each datanode.
+7. edit the workers file in the master node and add all the worker node machine names or the ipaddresses.
+8. start-dfs.sh and check across all the nodes if relevant processes have started up, using the jps command.
+9. Test the hdfs dfs commands from all the nodes.
+10. put the necessary input files.
+11. The Web UI URI -> http://paachary-master:9870
+
+Spark cluster setup
+
+1. make necessary entries in the /etc/hosts file in every node.
+2. install the spark software and copy the same directory structure across all the nodes to maintain consistency.
+2a. SPARK_HOME should be the same in all the nodes.
+3. make the logs directory under SPARK_HOME.
+4. edit the spark_env.sh file on all nodes to add SPARK_MASTER_HOST=paachary-master
+5. Edit the slaves file under the conf directory in SPARK_HOME and add the worker node machine names or the ipaddresses.
+6. start-master.sh
+7. start-slaves.sh
+8. Check the relevant log files under the logs directory.
+9. The web UI URI -> http://paachary-master:8080
+10. Master URL: spark://paachary-master:7077
+
+
+Zookeeper setup
+
+1. make necessary entries in the /etc/hosts file in every node.
+2. Install the zookeeper and kafka software on all the nodes.
+3. Make the following changes to the zoo.cfg file:
+
+        dataDir=/usr/local/apache-zookeeper-3.5.5-bin/data
+        clientPort=2181
+        maxClientCnxns=60
+        admin.serverPort=8081
+        server.1=0.0.0.0:2888:3888
+        server.2=169.254.254.92:2888:3888
+4. Create the myid file in the datadir with the value of integer specific to the server #
+5. Start the zookeeper servers on all the nodes.
+
+Kafka cluster server
+
+1. Make the following changes to server.properties on all the nodes:
+    a. Comment out the listeners and advertised.listeners
+    b. add the following two parameters:
+        i.   advertised.host.name=paachary-master
+        ii.  advertised.port=9092
+        iii. zookeeper.connect=paachary-master:2181,paachary-node1:2181
+2. Start the kafka server on each nodes using kafka-server-start.sh <property file with path>
+
+Commands:
+
+kafka-topics.sh --list --bootstrap-server "paachary-master:9092,paachary-node1:9092,paachary-node2:9092"
+kafka-console-consumer.sh --topic NewTopic --bootstrap-server paachary-node1:9092 om-beginning --partition 0
+kafka-console-producer.sh --topic NewTopic --broker-list paachary-master:9092
+
+
+
+
