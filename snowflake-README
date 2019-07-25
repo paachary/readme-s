@@ -1,3 +1,20 @@
+--connection to a snowflake account (using AWS)
+
+snowsql  -a gg42143.us-east-1 -u paachary
+
+
+-- Using a warehouse
+USE WAREHOUSE <name>;
+
+-- CREATING A DATABASE
+CREATE OR REPLACE DATABASE <name>;
+
+-- CREATING a schema
+CREATE OR REPLACE SCHEMA <name>;
+
+-- displaying all schemas under a WH@database
+SHOW schemas;
+
 Variant datatype: 
 Used to store semi-structured data.
 
@@ -73,4 +90,93 @@ SELECT * FROM
 )
 PIVOT (max(content) for type IN ('phone','email')) as p(id,first_name, phone, email);
 
+
+------
+Shared Databases
+
+SHARE -> object such as database, tables, views etc which can be imported by other databases / consumers.
+
+Shares are named Snowflake objects that encapsulate all of the information required to share a database. Each share consists of:
+
+    The privileges that grant access to the database(s) and the schema containing the objects to share.
+
+    The privileges that grant access to the specific objects (tables, secure views, and secure UDFs).
+
+    The consumer accounts with which the database and its objects are shared.
+
+    New objects added to a share become immediately available to all consumers, providing real-time access to shared data.
+    
+    Access to a share (or any of the objects in a share) can be revoked at any time.
+    
+    
+SNOWFLAKE database => provider of data which shares account usage and sample datasets for all accounts.
+When an account is created, SNOWFLAKE database is automatically imported into each account from a Share named as ACCOUNT_USAGE.
+Contains views similar to DBA* views in oracle.
+
+Command -> show views;
+
+------------------------------
+
+-- creating a secure view ( can be used similar to a VPD in oracle) and are used specifically to enforce data privacy. These views do not enforce query optimization.
+-- This is because the Snowflake query optimizer, when evaluating secure views, bypasses certain optimizations used for regular views. 
+-- This may result in some impact on query performance for secure views.
+CREATE OR REPLACE SECURE VIEW <name> AS <select>
+
+-- Parameter for simuating a shared account
+
+SIMULATED_DATA_SHARING_CONSUMER
+
+--------------------------------------------------------
+
+Process of creating a share
+
+--PRODUCER ACCOUNT--
+
+
+1. Create a share using ACCOUNT_ADMIN role.
+
+use role accountadmin;
+
+2. Create a share
+
+CREATE OR REPLACE SHARE <name> COMMENT = '<comment>';
+
+3. Grant the necessary privs to the share
+
+3a. Grant USAGE on database
+grant usage on database mydb to share mydb_shared;
+
+3b. gramt USAGE on schema
+grant usage on schema mydb.public to share mydb_shared;
+
+3c. grant SELECT on objects
+grant select on mydb.public.paid_sensitive_data to share mydb_shared;
+
+4. Add accounts to the share
+
+alter share mydb_shared set accounts = <consumer_account1, consumer_account2...>;
+
+---------------------------------------------------------------------------
+
+--CONSUMER consuming the SHARE--:
+
+use role accountadmin;
+
+show shares;
+
+create database mydb_shared1 from share <provider_account>.mydb_shared;
+
+/* Grant privileges on the database to other roles (e.g. SYSADMIN) in your account. */
+
+grant imported privileges on database mydb_shared1 to sysadmin;
+
+use role sysadmin;
+
+show views;
+
+use warehouse <warehouse_name>;
+
+select * from paid_sensitive_data;
+
+---------------------------------------------------------------------------
 
