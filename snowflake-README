@@ -174,9 +174,166 @@ use role sysadmin;
 
 show views;
 
+create or replace WAREHOUSE reader_wh;
+
 use warehouse <warehouse_name>;
 
 select * from paid_sensitive_data;
 
+
+
+----------------- READER ACCOUNT --------------------------------------
 ---------------------------------------------------------------------------
+
++-----------------------------------------------------------------------------------------+
+| status                                                                                  |
+|-----------------------------------------------------------------------------------------|
+| {"accountName":"OW29219","loginUrl":"https://ow29219.us-east-1.snowflakecomputing.com"} |
++-----------------------------------------------------------------------------------------+
+1 Row(s) produced. Time Elapsed: 1.543s
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+Example for illustrating shares:
+
+use role sysadmin;
+
+create or replace table mydb.private.sensitive_data (
+    name string,
+    date date,
+    time time(9),
+    bid_price float,
+    ask_price float,
+    bid_size int,
+    ask_size int,
+    access_id string /* granularity for access */ )
+    cluster by (date);
+
+insert into mydb.private.sensitive_data
+    values('AAPL',dateadd(day,  -1,current_date()), '10:00:00', 116.5, 116.6, 10, 10, 'STOCK_GROUP_1'),
+          ('AAPL',dateadd(month,-2,current_date()), '10:00:00', 116.5, 116.6, 10, 10, 'STOCK_GROUP_1'),
+          ('MSFT',dateadd(day,  -1,current_date()), '10:00:00',  58.0,  58.9, 20, 25, 'STOCK_GROUP_1'),
+          ('MSFT',dateadd(month,-2,current_date()), '10:00:00',  58.0,  58.9, 20, 25, 'STOCK_GROUP_1'),
+          ('IBM', dateadd(day,  -1,current_date()), '11:00:00', 175.2, 175.4, 30, 15, 'STOCK_GROUP_2'),
+          ('IBM', dateadd(month,-2,current_date()), '11:00:00', 175.2, 175.4, 30, 15, 'STOCK_GROUP_2');
+
+create or replace table mydb.private.sharing_access (
+  access_id string,
+  snowflake_account string
+);
+
+
+/* In the first insert, CURRENT_ACCOUNT() gives your account access to the AAPL and MSFT data.       */
+
+insert into mydb.private.sharing_access values('STOCK_GROUP_1', CURRENT_ACCOUNT());
+
+
+/* In the second insert, replace <consumer_account> with an account name; this account will have     */
+/* access to IBM data only. Note that account names are case-sensitive and must be in uppercase      */
+/* enclosed in single-quotes, e.g.                                                                   */
+/*                                                                                                   */
+/*      insert into into mydb.private.sharing_access values('STOCK_GROUP_2', 'ACCT1')                */
+/*                                                                                                   */
+/* To share the IBM data with multiple accounts, repeat the second insert for each account.          */
+
+insert into mydb.private.sharing_access values('STOCK_GROUP_2', '<consumer_account>');
+insert into mydb.private.SHARING_ACCESS values ('STOCK_GROUP_1','OW29219');
+
+
+
+/* Create a secure view in the 'public' schema. This view filters the stock data from the first      */
+/* table by account, using the mapping information in the second table.                              */
+
+create or replace secure view mydb.public.paid_sensitive_data as
+    select name, date, time, bid_price, ask_price, bid_size, ask_size
+    from mydb.private.sensitive_data sd
+    join mydb.private.sharing_access sa on sd.access_id = sa.access_id
+    and sa.snowflake_account = current_account();
+
+grant select on mydb.public.paid_sensitive_data to public;
+
+
+/* Test the table and secure view by first querying the data as the provider account. */
+
+select count(*) from mydb.private.sensitive_data;
+
+select * from mydb.private.sensitive_data;
+
+select count(*) from mydb.public.paid_sensitive_data;
+
+select * from mydb.public.paid_sensitive_data;
+
+-----Creating a Share:
+
+use role ACCOUNTADMIN;
+
+create managed account prax_reader_acct1 admin_name=<> admin_password='<>' type=reader;
+
+show shares;
+
++-------------------------------+---------+-------------------------+-----------------------+----+-------+---------+
+| created_on                    | kind    | name                    | database_name         | to | owner | comment |
+|-------------------------------+---------+-------------------------+-----------------------+----+-------+---------|
+| 2017-05-19 18:21:40.807 -0700 | INBOUND | SFC_SAMPLES.SAMPLE_DATA | SNOWFLAKE_SAMPLE_DATA |    |       |         |
+| 2018-08-15 10:46:33.366 -0700 | INBOUND | SNOWFLAKE.ACCOUNT_USAGE | SNOWFLAKE             |    |       |         |
++-------------------------------+---------+-------------------------+-----------------------+----+-------+---------+
+
+create or replace SHARE prax_share ;
+
+grant usage on database MYDB to share prax_share;
+
+grant usage on schema PUBLIC to share prax_share;
+
+grant select on mydb.public.PAID_SENSITIVE_DATA to share prax_share;
+
+SHOW GRANTS TO SHARE prax_share;
+
++-------------------------------+-----------+------------+---------------------------------+------------+--------------------+--------------+------------+
+| created_on                    | privilege | granted_on | name                            | granted_to | grantee_name       | grant_option | granted_by |
+|-------------------------------+-----------+------------+---------------------------------+------------+--------------------+--------------+------------|
+| 2019-07-30 18:03:42.022 -0700 | USAGE     | DATABASE   | MYDB                            | SHARE      | GG42143.PRAX_SHARE | false        | SYSADMIN   |
+| 2019-07-30 18:04:03.043 -0700 | USAGE     | SCHEMA     | MYDB.PUBLIC                     | SHARE      | GG42143.PRAX_SHARE | false        | SYSADMIN   |
+| 2019-07-30 18:04:47.087 -0700 | SELECT    | VIEW       | MYDB.PUBLIC.PAID_SENSITIVE_DATA | SHARE      | GG42143.PRAX_SHARE | false        | SYSADMIN   |
++-------------------------------+-----------+------------+---------------------------------+------------+--------------------+--------------+------------+
+
+alter share prax_share add accounts=OW29219;
+
+------------------------------------------------
+--Consumer:
+
+--Login into the reader account:
+
+use role accountadmin;
+
+show shares;
+
++-------------------------------+---------+-------------------------+---------------+----+-------+---------+
+| created_on                    | kind    | name                    | database_name | to | owner | comment |
+|-------------------------------+---------+-------------------------+---------------+----+-------+---------|
+| 2019-07-30 18:03:04.997 -0700 | INBOUND | GG42143.PRAX_SHARE      |               |    |       |         |
+| 2018-08-15 10:46:33.366 -0700 | INBOUND | SNOWFLAKE.ACCOUNT_USAGE | SNOWFLAKE     |    |       |         |
++-------------------------------+---------+-------------------------+---------------+----+-------+---------+
+
+create database prax_shared_db from share GG42143.PRAX_SHARE;
+
+create or replace WAREHOUSE reader_wh;
+
+use WAREHOUSE READER_WH;
+
+use ROLE ACCOUNTADMIN;
+
+grant imported privileges on database PRAX_SHARED_DB to sysadmin;
+
+select * from PAID_SENSITIVE_DATA;
+
+
+
+
+
+
+
+
+
+
 
