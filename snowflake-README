@@ -18,7 +18,7 @@ SHOW schemas;
 Variant datatype: 
 Used to store semi-structured data.
 
-Example for loading an xml file:
+Example for loading an json file:
 
 1. 
 -- CREATING A Raw Source table:
