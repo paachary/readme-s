@@ -1,6 +1,6 @@
 --connection to a snowflake account (using AWS)
 
-snowsql  -a gg42143.us-east-1 -u paachary
+snowsql  -a <> -u <>
 
 
 -- Using a warehouse
