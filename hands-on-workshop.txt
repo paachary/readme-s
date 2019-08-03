@@ -99,8 +99,10 @@ Preparing the data to be shared as a producer:
     CREATE OR REPLACE FILE FORMAT my_csv_format
     TYPE='CSV'
     RECORD_DELIMITER='\\n'
-    FIELD_DEMILITER='|'
-    TRIM_SPACE=FALSE;
+    FIELD_DELIMITER='|'
+    TRIM_SPACE=FALSE
+    NULL_IF = ('NULL','null','','          ');
+
 
     CREATE OR REPLACE STAGE stg_data_csv
     file_format = my_csv_format;
@@ -110,7 +112,7 @@ Preparing the data to be shared as a producer:
     CREATE OR REPLACE TABLE departments
     (department_id INT, department_name STRING, manager_id INT, location_id INT );
 
-    LIST stg_data_csv;
+    LIST @stg_data_csv;
 
     COPY INTO departments FROM @stg_data_csv/departments.csv.gz;
 
@@ -130,28 +132,30 @@ Creating a Share:
 
     GRANT USAGE ON SCHEMA mydb.myschema TO SHARE mydb_share;
 
-    GRANT SELECT ON mydb.myschema.departments SHARE mydb_share;
+    GRANT SELECT ON mydb.myschema.departments TO SHARE mydb_share;
 
-    ALTER SHARE mydb_shared SET ACCOUNTS = <acct_name>;
-
+    ALTER SHARE mydb_share SET ACCOUNTS = <acct_name>;
 
 Preparing reader-account to consume departments' data:
+
+    Login as reader-account using snowsql
 
     USE ROLE ACCOUNTADMIN;
 
     SHOW SHARES;
 
-    CREATE DATABASE my_consumer_db FROM SHARE <provider_account>.mydb_shared;
+    CREATE DATABASE my_consumer_db FROM SHARE <provider_account>.mydb_share;
 
     GRANT IMPORTED PRIVILEGES ON DATABASE my_consumer_db TO sysadmin;
 
     USE ROLE sysadmin;
 
-    CREATE OR REPLACE WAREHOUSE reader_wh;
+    CREATE OR REPLACE WAREHOUSE reader_wh_new;
 
-    USE reader_wh;
+    USE reader_wh_new;
 
     USE DATABASE my_consumer_db;
 
-    SELECT * FROM departments;
+    SELECT * FROM myschema.departments;
+
 
