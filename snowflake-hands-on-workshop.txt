@@ -98,7 +98,7 @@ Snowflake specific examples
 
     Load the contents of the contacts.json into the above staging table.
 
-        PUT file://./contacts.json INTO @raw_data_stg;
+        PUT file://./contacts.json @raw_data_stg;
 
     Copy the contents of the staging table into the target table created above.
 
