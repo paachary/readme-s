@@ -10,22 +10,22 @@ Basic Commands
 ---------------
 
 Create a virtual warehouse:
-    CREATE OR REPLACE WAREHOUSE <wh_home>;
+    CREATE OR REPLACE WAREHOUSE mywh;
 
 Switching to the newly created warehouse: 
-    USE WAREHOUSE <wh_name>;
+    USE WAREHOUSE mywh;
 
 Creating a database:
-    CREATE OR REPLACE DATABASE <db_name>;
+    CREATE OR REPLACE DATABASE mydb;
 
 Switching to the newly created database:
-    USE DATABASE <db_name>;
+    USE DATABASE mydb;
     
 Creating a schema:
-    CREATE OR REPLACE SCHEMA <schema_name>
+    CREATE OR REPLACE SCHEMA myschema;
 
 Switching to the newly created schema:
-    USE SCHEMA <schema_name>;
+    USE SCHEMA myschema;
 
 Listing schemas:
     SHOW SCHEMAS;
