@@ -84,6 +84,44 @@ Quering the data
                TO_TIMESTAMP_NTZ(src:sale_date::string) sale_date
         FROM raw_src_tbl;
 
+---------------------------
+Snowflake specific examples
+---------------------------
+
+    FLATTEN:
+          Explodes (flattens) compound values into multiple rows.
+      It is a table function that takes a VARIANT, OBJECT, ARRAY column and produces a lateral view( an inline view that contains correlatio referring to the tables that precede it in the FROM clause).
+
+      It is used to convert a semi-structured data into a relational representation.
+
+    Use the same staging table as above.
+
+    Load the contents of the contacts.json into the above staging table.
+
+        PUT file://./contacts.json INTO @raw_data_stg;
+
+    Copy the contents of the staging table into the target table created above.
+
+        COPY INTO raw_src_tbl FROM @raw_data_stg;
+
+    Querying the data:
+
+    Snowflake SQL supports many Oracle-Like functions and syntax, example below:
+
+        SELECT * FROM
+        (
+        SELECT src:id::number id, 
+           src:name:first::string first_name, 
+           c.value:type::string type,
+           c.value:content::string content
+        FROM raw_src_tbl s, 
+         lateral flatten(input => src, path => 'contact') m,
+         lateral flatten (input => m.value:business) c
+        )
+        PIVOT (max(content) for type IN ('phone','email')) as p(id,first_name, phone, email);
+
+
+
 -------------------------
 Sharing Database and Data
 --------------------------
